@@ -1,6 +1,7 @@
 import type { Module } from '@/game/engine'
 import { fireExtinguisher } from './fire-extinguisher'
 import { hangShelf } from './hang-shelf'
+import { leakingTap } from './leaking-tap'
 import { lightBulb } from './light-bulb'
 import { paintWall } from './paint-wall'
 import { powerPlug } from './power-plug'
@@ -13,4 +14,5 @@ export const modules: Module[] = [
   fireExtinguisher,
   powerPlug,
   hangShelf,
+  leakingTap,
 ]
