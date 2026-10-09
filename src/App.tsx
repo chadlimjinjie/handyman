@@ -1,59 +1,87 @@
-import { useState } from 'react'
+import {
+  Link,
+  RouterProvider,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  redirect,
+} from '@tanstack/react-router'
 import { Certificate } from '@/components/Certificate'
 import { ModulePlayer } from '@/components/ModulePlayer'
-import { Button } from '@/components/ui/button'
-import type { Module } from '@/game/engine'
+import { buttonVariants } from '@/components/ui/button'
 import { loadProgress, saveProgress } from '@/lib/progress'
 import { modules } from '@/modules'
 
-type Screen = { name: 'home' } | { name: 'play' | 'cert'; mod: Module }
+function findModule(id: string) {
+  const mod = modules.find((m) => m.id === id)
+  if (!mod) throw redirect({ to: '/modules' })
+  return mod
+}
 
-function App() {
-  const [screen, setScreen] = useState<Screen>({ name: 'home' })
-  const [progress, setProgress] = useState(loadProgress)
-  const home = () => setScreen({ name: 'home' })
+const rootRoute = createRootRoute()
 
-  if (screen.name === 'play') {
-    const { mod } = screen
-    return (
-      <ModulePlayer
-        mod={mod}
-        onExit={home}
-        onComplete={(name) => {
-          const next = {
-            ...progress,
-            [mod.id]: {
-              name,
-              date: new Date().toISOString(),
-              certId: crypto.randomUUID().slice(0, 8).toUpperCase(),
-            },
-          }
-          setProgress(next)
-          saveProgress(next)
-          setScreen({ name: 'cert', mod })
-        }}
-      />
-    )
+const landingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/',
+  component: Landing,
+})
+
+const modulesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'modules',
+  component: Modules,
+})
+
+const moduleRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'modules/$moduleId',
+  loader: ({ params }) => findModule(params.moduleId),
+  component: Play,
+})
+
+const certRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'modules/$moduleId/certificate',
+  loader: ({ params }) => {
+    const mod = findModule(params.moduleId)
+    if (!loadProgress()[mod.id]) throw redirect({ to: '/modules/$moduleId', params })
+    return mod
+  },
+  component: Cert,
+})
+
+const router = createRouter({
+  routeTree: rootRoute.addChildren([landingRoute, modulesRoute, moduleRoute, certRoute]),
+})
+
+declare module '@tanstack/react-router' {
+  interface Register {
+    router: typeof router
   }
+}
 
-  if (screen.name === 'cert') {
-    return (
-      <Certificate
-        title={screen.mod.title}
-        cert={progress[screen.mod.id]}
-        onBack={home}
-      />
-    )
-  }
-
+function Landing() {
   return (
-    <main className="mx-auto flex max-w-2xl flex-col gap-6 p-4">
+    <main className="mx-auto flex max-w-2xl flex-col items-start gap-6 p-4">
       <header>
         <h1 className="text-2xl font-semibold">Handyman Academy</h1>
         <p className="text-muted-foreground">
           Learn home repairs by doing them. Finish a module to earn a certificate.
         </p>
       </header>
+      <Link to="/modules" className={buttonVariants()}>
+        Browse modules
+      </Link>
+    </main>
+  )
+}
+
+function Modules() {
+  const progress = loadProgress()
+
+  return (
+    <main className="mx-auto flex max-w-2xl flex-col gap-6 p-4">
+      <h1 className="text-2xl font-semibold">Modules</h1>
       <ul className="flex flex-col gap-3">
         {modules.map((mod) => (
           <li
@@ -68,19 +96,68 @@ function App() {
             </div>
             <div className="flex gap-2">
               {progress[mod.id] && (
-                <Button variant="outline" onClick={() => setScreen({ name: 'cert', mod })}>
+                <Link
+                  to="/modules/$moduleId/certificate"
+                  params={{ moduleId: mod.id }}
+                  className={buttonVariants({ variant: 'outline' })}
+                >
                   View certificate
-                </Button>
+                </Link>
               )}
-              <Button onClick={() => setScreen({ name: 'play', mod })}>
+              <Link
+                to="/modules/$moduleId"
+                params={{ moduleId: mod.id }}
+                className={buttonVariants()}
+              >
                 {progress[mod.id] ? 'Play again' : 'Start'}
-              </Button>
+              </Link>
             </div>
           </li>
         ))}
       </ul>
     </main>
   )
+}
+
+function Play() {
+  const mod = moduleRoute.useLoaderData()
+  const navigate = moduleRoute.useNavigate()
+
+  return (
+    <ModulePlayer
+      key={mod.id}
+      mod={mod}
+      onExit={() => navigate({ to: '/modules' })}
+      onComplete={(name) => {
+        saveProgress({
+          ...loadProgress(),
+          [mod.id]: {
+            name,
+            date: new Date().toISOString(),
+            certId: crypto.randomUUID().slice(0, 8).toUpperCase(),
+          },
+        })
+        navigate({ to: '/modules/$moduleId/certificate', params: { moduleId: mod.id } })
+      }}
+    />
+  )
+}
+
+function Cert() {
+  const mod = certRoute.useLoaderData()
+  const navigate = certRoute.useNavigate()
+
+  return (
+    <Certificate
+      title={mod.title}
+      cert={loadProgress()[mod.id]}
+      onBack={() => navigate({ to: '/modules' })}
+    />
+  )
+}
+
+function App() {
+  return <RouterProvider router={router} />
 }
 
 export default App
