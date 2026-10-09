@@ -210,7 +210,7 @@ function Scene({ step, slip, mistakes, onAct, reduced }: SceneProps) {
       <pointLight ref={lamp} color="#ffb86b" intensity={0} position={FIXTURE.toArray()} />
 
       {/* room corner: floor and the two walls facing the camera */}
-      <Box size={[3.4, 0.1, 3.4]} color="#a8a29e" position={[0, -0.05, 0]} />
+      <Box size={[3.5, 0.1, 3.5]} color="#a8a29e" position={[-0.05, -0.05, 0.05]} />
       <Box size={[0.1, 3.2, 3.4]} color="#fef3c7" position={[-1.75, 1.6, 0]} />
       <Box size={[3.4, 3.2, 0.1]} color="#fef3c7" position={[0, 1.6, 1.75]} />
 

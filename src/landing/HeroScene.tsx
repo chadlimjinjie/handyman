@@ -60,8 +60,8 @@ function Scene({ animate, onLit }: { animate: boolean; onLit: (lit: boolean) => 
       />
 
       {/* room corner: floor and the two walls facing the camera */}
-      <mesh receiveShadow position={[0, -0.05, 0]}>
-        <boxGeometry args={[3.4, 0.1, 3.4]} />
+      <mesh receiveShadow position={[-0.05, -0.05, 0.05]}>
+        <boxGeometry args={[3.5, 0.1, 3.5]} />
         <meshStandardMaterial color="#a8a29e" />
       </mesh>
       <mesh receiveShadow position={[-1.75, 1.6, 0]}>
