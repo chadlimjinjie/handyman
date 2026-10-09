@@ -7,6 +7,7 @@ import {
   redirect,
 } from '@tanstack/react-router'
 import { Certificate } from '@/components/Certificate'
+import { Landing } from '@/components/Landing'
 import { ModulePlayer } from '@/components/ModulePlayer'
 import { buttonVariants } from '@/components/ui/button'
 import { loadProgress, saveProgress } from '@/lib/progress'
@@ -58,22 +59,6 @@ declare module '@tanstack/react-router' {
   interface Register {
     router: typeof router
   }
-}
-
-function Landing() {
-  return (
-    <main className="mx-auto flex max-w-2xl flex-col items-start gap-6 p-4">
-      <header>
-        <h1 className="text-2xl font-semibold">Handyman Academy</h1>
-        <p className="text-muted-foreground">
-          Learn home repairs by doing them. Finish a module to earn a certificate.
-        </p>
-      </header>
-      <Link to="/modules" className={buttonVariants()}>
-        Browse modules
-      </Link>
-    </main>
-  )
 }
 
 function Modules() {
