@@ -128,3 +128,8 @@
     @apply font-sans;
     }
 }
+
+@page {
+  size: landscape;
+  margin: 0; /* also drops the browser's URL/date header and footer */
+}

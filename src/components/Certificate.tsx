@@ -24,17 +24,17 @@ export function Certificate({
   })}`
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-4 p-4">
-      <div className="flex flex-col items-center gap-3 rounded-xl border-4 border-double border-amber-600 px-6 py-12 text-center">
-        <Award className="size-12 text-amber-600" aria-hidden="true" />
-        <p className="text-sm tracking-widest text-muted-foreground uppercase">
+    <div className="@container mx-auto flex max-w-4xl flex-col gap-4 p-4 print:h-screen print:max-w-none print:p-[1cm]">
+      <div className="flex aspect-[297/210] flex-col items-center justify-center gap-[1.5cqw] rounded-xl border-8 border-double border-amber-600 px-[6cqw] text-center print:aspect-auto print:flex-1">
+        <Award className="size-[9cqw] text-amber-600" aria-hidden="true" />
+        <p className="text-[1.8cqw] tracking-widest text-muted-foreground uppercase">
           Certificate of Completion
         </p>
-        <p className="text-sm">This certifies that</p>
-        <p className="text-3xl font-semibold">{cert.name}</p>
-        <p className="text-sm">has successfully completed the training module</p>
-        <p className="text-xl font-medium">{title}</p>
-        <p className="mt-6 text-sm text-muted-foreground">
+        <p className="text-[1.8cqw]">This certifies that</p>
+        <p className="text-[5cqw] font-semibold text-balance">{cert.name}</p>
+        <p className="text-[1.8cqw]">has successfully completed the training module</p>
+        <p className="text-[3cqw] font-medium">{title}</p>
+        <p className="mt-[3cqw] text-[1.6cqw] text-muted-foreground">
           {ISSUER} · {date.toLocaleDateString(undefined, { dateStyle: 'long' })} · ID{' '}
           {cert.certId}
         </p>
