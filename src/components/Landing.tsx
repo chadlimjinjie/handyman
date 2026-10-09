@@ -104,7 +104,7 @@ export function Landing() {
 
       <section className="mx-auto max-w-6xl px-4 py-16">
         <h2 className="text-2xl font-semibold">Pick a job</h2>
-        <ul className="mt-6 grid gap-4 sm:grid-cols-3">
+        <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {modules.map((mod) => (
             <li key={mod.id}>
               <Link

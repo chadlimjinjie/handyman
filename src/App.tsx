@@ -1,11 +1,13 @@
 import {
   Link,
+  Outlet,
   RouterProvider,
   createRootRoute,
   createRoute,
   createRouter,
   redirect,
 } from '@tanstack/react-router'
+import { Hammer } from 'lucide-react'
 import { Certificate } from '@/components/Certificate'
 import { Landing } from '@/components/Landing'
 import { ModulePlayer } from '@/components/ModulePlayer'
@@ -27,21 +29,27 @@ const landingRoute = createRoute({
   component: Landing,
 })
 
-const modulesRoute = createRoute({
+const shellRoute = createRoute({
   getParentRoute: () => rootRoute,
+  id: 'shell',
+  component: Shell,
+})
+
+const modulesRoute = createRoute({
+  getParentRoute: () => shellRoute,
   path: 'modules',
   component: Modules,
 })
 
 const moduleRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => shellRoute,
   path: 'modules/$moduleId',
   loader: ({ params }) => findModule(params.moduleId),
   component: Play,
 })
 
 const certRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => shellRoute,
   path: 'modules/$moduleId/certificate',
   loader: ({ params }) => {
     const mod = findModule(params.moduleId)
@@ -52,13 +60,35 @@ const certRoute = createRoute({
 })
 
 const router = createRouter({
-  routeTree: rootRoute.addChildren([landingRoute, modulesRoute, moduleRoute, certRoute]),
+  routeTree: rootRoute.addChildren([
+    landingRoute,
+    shellRoute.addChildren([modulesRoute, moduleRoute, certRoute]),
+  ]),
 })
 
 declare module '@tanstack/react-router' {
   interface Register {
     router: typeof router
   }
+}
+
+function Shell() {
+  return (
+    <>
+      <header className="border-b print:hidden">
+        <nav className="mx-auto flex max-w-4xl items-center justify-between gap-4 p-4">
+          <Link to="/" className="flex items-center gap-2 font-semibold">
+            <Hammer className="size-4 text-amber-600" aria-hidden="true" />
+            Handyman Academy
+          </Link>
+          <Link to="/modules" className={buttonVariants({ variant: 'ghost' })}>
+            Modules
+          </Link>
+        </nav>
+      </header>
+      <Outlet />
+    </>
+  )
 }
 
 function Modules() {
