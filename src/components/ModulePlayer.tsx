@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Volume2, VolumeX, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   MAX_MISTAKES,
@@ -10,6 +10,10 @@ import {
   type Module,
 } from '@/game/engine'
 import { cn } from '@/lib/utils'
+import { Subtitle } from '@/scene/frame'
+
+const MUTED_KEY = 'handyman-muted'
+const canSpeak = 'speechSynthesis' in window
 
 export function ModulePlayer({
   mod,
@@ -23,6 +27,25 @@ export function ModulePlayer({
   const [run, setRun] = useState(() => start(mod))
   const won = hasWon(mod, run)
   const failed = hasFailed(run)
+  const [muted, setMuted] = useState(() => {
+    try {
+      return localStorage.getItem(MUTED_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
+
+  // The narrator reads the caption. `run.mistakes` is here so a repeated slip is read again.
+  useEffect(() => {
+    if (muted || !canSpeak) return
+    const said = new SpeechSynthesisUtterance(
+      failed ? `${run.message} Three strikes. ${mod.fail}` : run.message,
+    )
+    // the text is British/Singapore English: keeps a non-English default voice off it
+    said.lang = 'en-GB'
+    speechSynthesis.speak(said)
+    return () => speechSynthesis.cancel()
+  }, [run.message, run.mistakes, muted, failed, mod.fail])
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-4 p-4">
@@ -44,15 +67,29 @@ export function ModulePlayer({
               />
             ))}
           </span>
+          {canSpeak && (
+            <Button
+              variant="outline"
+              size="icon"
+              aria-pressed={muted}
+              aria-label={muted ? 'Unmute narrator' : 'Mute narrator'}
+              onClick={() => {
+                setMuted(!muted)
+                try {
+                  localStorage.setItem(MUTED_KEY, muted ? '' : '1')
+                } catch {
+                  // storage blocked: the choice lasts for this module only
+                }
+              }}
+            >
+              {muted ? <VolumeX /> : <Volume2 />}
+            </Button>
+          )}
           <Button variant="outline" onClick={onExit}>
             Exit
           </Button>
         </div>
       </header>
-
-      <p role="status" className="min-h-10 rounded-lg bg-muted px-3 py-2 text-sm">
-        {run.message}
-      </p>
 
       {failed && (
         <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
@@ -85,12 +122,14 @@ export function ModulePlayer({
         </form>
       )}
 
-      <mod.Scene
-        step={run.step}
-        slip={run.slip}
-        mistakes={run.mistakes}
-        onAct={(target) => setRun((r) => act(mod, r, target))}
-      />
+      <Subtitle value={run.message}>
+        <mod.Scene
+          step={run.step}
+          slip={run.slip}
+          mistakes={run.mistakes}
+          onAct={(target) => setRun((r) => act(mod, r, target))}
+        />
+      </Subtitle>
     </div>
   )
 }
