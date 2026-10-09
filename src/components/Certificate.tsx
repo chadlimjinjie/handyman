@@ -38,6 +38,9 @@ export function Certificate({
           {ISSUER} · {date.toLocaleDateString(undefined, { dateStyle: 'long' })} · ID{' '}
           {cert.certId}
         </p>
+        <p className="text-[1.2cqw] text-muted-foreground">
+          Awareness training only. Not a trade licence or WSQ qualification.
+        </p>
       </div>
 
       <div className="flex flex-wrap justify-center gap-3 print:hidden">

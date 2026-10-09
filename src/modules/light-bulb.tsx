@@ -5,18 +5,19 @@ import { Spot } from './spot'
 
 const shelf = [
   { target: 'new-led-e27', label: 'LED 9W', base: 'E27' },
-  { target: 'new-100w', label: '100W', base: 'E27' },
+  { target: 'new-100w', label: 'Old 100W', base: 'E27' },
   { target: 'new-e14', label: 'LED 5W', base: 'E14' },
 ]
 
 // Everything drawn here is derived from `step` (index into `steps` below).
 function Scene({ step, onAct }: { step: number; onAct: (target: string) => void }) {
-  const powerOn = step === 0 || step === 8
-  const oldBulbIn = step < 4
-  const socketEmpty = step === 4 || step === 5
+  const powerOn = step === 0 || step === 10
+  const breakerOn = step < 2 || step > 8
+  const oldBulbIn = step < 5
+  const socketEmpty = step === 5 || step === 6
   const hand = [
-    step >= 4 && step <= 6 && 'old bulb',
-    step === 5 && 'new LED bulb',
+    step >= 5 && step <= 7 && 'old bulb',
+    step === 6 && 'new LED bulb',
   ].filter(Boolean)
 
   return (
@@ -29,8 +30,8 @@ function Scene({ step, onAct }: { step: number; onAct: (target: string) => void 
           socketEmpty
             ? 'Empty light socket'
             : oldBulbIn
-              ? `Old bulb${step < 2 ? ', hot' : ''}`
-              : `New bulb${step === 8 ? ', lit' : ''}`
+              ? `Old bulb${step < 3 ? ', hot' : ''}`
+              : `New bulb${step === 10 ? ', lit' : ''}`
         }
         onClick={() => onAct(socketEmpty ? 'socket' : 'bulb')}
         className="top-[3%] left-1/2 w-[14%] -translate-x-1/2"
@@ -43,15 +44,15 @@ function Scene({ step, onAct }: { step: number; onAct: (target: string) => void 
           <Lightbulb
             className={cn(
               'size-auto w-3/5 rotate-180',
-              step === 8
+              step === 10
                 ? 'fill-yellow-300 text-yellow-500 drop-shadow-[0_0_12px_gold]'
-                : step < 2
+                : step < 3
                   ? 'text-red-600'
                   : 'text-stone-500',
             )}
           />
         )}
-        {step < 2 && <span className="text-red-700">HOT</span>}
+        {step < 3 && <span className="text-red-700">HOT</span>}
       </Spot>
       <p className="absolute top-[6%] left-[60%] rounded border border-stone-400 bg-white px-1.5 py-0.5 text-xs text-stone-700">
         Fixture: E27 · max 60W
@@ -66,11 +67,32 @@ function Scene({ step, onAct }: { step: number; onAct: (target: string) => void 
           <span
             className={cn(
               'h-1/2 w-full rounded-sm',
-              powerOn ? 'self-start bg-green-600' : 'self-end bg-stone-400',
+              // Singapore rockers: down is ON
+              powerOn ? 'self-end bg-green-600' : 'self-start bg-stone-400',
             )}
           />
         </span>
         {powerOn ? 'ON' : 'OFF'}
+      </Spot>
+
+      <Spot
+        aria-label={`DB box, lighting breaker ${breakerOn ? 'on' : 'off'}`}
+        onClick={() => onAct('breaker')}
+        className="top-[12%] left-[22%] w-[12%] gap-1 p-1"
+      >
+        <span className="flex aspect-[3/2] w-full gap-[8%] rounded border-2 border-stone-500 bg-stone-200 p-[8%]">
+          <span className="h-1/2 flex-1 self-start rounded-sm bg-stone-500" />
+          <span className="h-1/2 flex-1 self-start rounded-sm bg-stone-500" />
+          <span
+            className={cn(
+              'h-1/2 flex-1 rounded-sm',
+              // MCB levers: up is ON, opposite of the rocker
+              breakerOn ? 'self-start bg-green-600' : 'self-end bg-stone-400',
+            )}
+          />
+        </span>
+        DB box
+        <span className="text-stone-500">Lights {breakerOn ? 'ON' : 'OFF'}</span>
       </Spot>
 
       <Spot
@@ -83,11 +105,13 @@ function Scene({ step, onAct }: { step: number; onAct: (target: string) => void 
       </Spot>
 
       <Spot
-        aria-label={step < 3 ? 'Ladder, leaning on the wall' : 'Ladder, under the fixture'}
+        aria-label={
+          step < 4 ? 'Stepladder, folded against the wall' : 'Stepladder, open under the fixture'
+        }
         onClick={() => onAct('ladder')}
         className={cn(
           'bottom-[8%] h-[52%] w-[12%]',
-          step < 3 ? 'left-[84%] rotate-6' : 'left-[44%]',
+          step < 4 ? 'left-[84%] rotate-6' : 'left-[44%]',
         )}
       >
         <svg
@@ -109,7 +133,7 @@ function Scene({ step, onAct }: { step: number; onAct: (target: string) => void 
             onClick={() => onAct(b.target)}
             className={cn(
               'static flex-1 border border-stone-400 bg-white py-1',
-              step > 4 && b.target === 'new-led-e27' && 'invisible',
+              step > 5 && b.target === 'new-led-e27' && 'invisible',
             )}
           >
             <Lightbulb className="size-5" aria-hidden="true" />
@@ -120,12 +144,12 @@ function Scene({ step, onAct }: { step: number; onAct: (target: string) => void 
       </div>
 
       <Spot
-        aria-label="Bin"
+        aria-label="E-waste bin"
         onClick={() => onAct('bin')}
         className="bottom-[9%] left-[66%] w-[9%] p-1"
       >
         <Trash2 className="size-auto w-full" />
-        Bin
+        E-waste
       </Spot>
 
       <p className="absolute bottom-[2%] left-[4%] text-xs font-medium text-stone-900">
@@ -141,32 +165,57 @@ export const lightBulb: Module = {
   brief: 'The hallway bulb just blew. Replace it safely.',
   fail: 'On a real job that is a trip to A&E.',
   steps: [
-    { target: 'switch', done: 'Power is off. No shock risk now.' },
+    {
+      target: 'switch',
+      done: 'Wall switch is off. A dead bulb cannot confirm that, so make sure at the DB box.',
+    },
+    {
+      target: 'breaker',
+      done: 'Lighting breaker is off. Use daylight or a torch: other lights on this circuit are out too.',
+    },
     { target: 'wait', done: 'The bulb has cooled down.' },
-    { target: 'ladder', done: 'Ladder is stable, right under the fixture.' },
+    { target: 'ladder', done: 'Stepladder is fully open, locked and right under the fixture.' },
     { target: 'bulb', done: 'Old bulb is out. Check its base and wattage.' },
     { target: 'new-led-e27', done: 'E27 base and well under 60W. Good match.' },
     { target: 'socket', done: 'New bulb fitted: snug, not overtightened.' },
-    { target: 'bin', done: 'Old bulb disposed of safely.' },
-    { target: 'switch', done: "Light's on. Job done!" },
+    {
+      target: 'bin',
+      done: 'Old bulb goes in an e-waste bin (3-in-1 or Battery & Bulb), not the rubbish chute.',
+    },
+    { target: 'breaker', done: 'Lighting breaker is back on.' },
+    {
+      target: 'switch',
+      done: "Light's on. Job done! If a new bulb ever does not light, stop: the fitting or wiring needs a Licensed Electrical Worker.",
+    },
   ],
   mistakes: {
     '0:bulb': 'Zap! The power is still on. Switch it off before touching the bulb.',
     '0:ladder': 'Make it safe first: switch the power off before setting up.',
-    '1:bulb': 'Ouch! A bulb that just blew is hot. Give it a few minutes to cool.',
-    '1:ladder': 'Let the bulb cool before you climb up to it.',
-    '2:bulb': 'You cannot reach it safely. No stretching or chair-balancing: use the ladder.',
-    '4:socket': 'Nothing to fit yet. Pick a replacement bulb first.',
-    '4:bin': 'Hold on to it for a moment: match its base and wattage to pick the replacement.',
-    '5:bin': 'Finish the job up the ladder first: fit the new bulb.',
-    '6:switch': 'The old bulb is still in your hand. Dispose of it safely first.',
-    'new-100w': '100W is over the 60W maximum on this fixture. That is a fire risk.',
+    '0:breaker':
+      'Wall switch first, so the bulb does not come on unexpectedly when the breaker goes back on.',
+    '1:bulb':
+      'The wall switch is off, but a dead bulb cannot prove it. Switch off the lighting breaker first.',
+    '1:ladder': 'Make sure of the power first: switch off the lighting breaker.',
+    '1:wait': 'Finish isolating first: switch off the lighting breaker.',
+    '2:bulb': 'Ouch! A bulb that just blew is hot. Give it a few minutes to cool.',
+    '2:ladder': 'Let the bulb cool before you climb up to it.',
+    '3:bulb': 'You cannot reach it safely. No stretching or chair-balancing: use the ladder.',
+    '5:socket': 'Nothing to fit yet. Pick a replacement bulb first.',
+    '5:bin': 'Hold on to it for a moment: match its base and wattage to pick the replacement.',
+    '6:bin': 'Finish the job up the ladder first: fit the new bulb.',
+    '7:switch': 'The old bulb is still in your hand. Recycle it first.',
+    '7:breaker': 'The old bulb is still in your hand. Recycle it first.',
+    '8:switch': 'The wall switch does nothing until the lighting breaker is back on.',
+    '9:breaker': 'The breaker is already back on. Use the wall switch.',
+    'new-100w':
+      '100W is over the 60W maximum on this fixture. That is a fire risk. Check the actual watts, not the "equivalent" figure on the box.',
     'new-e14': 'E14 is the small screw base. This fixture takes E27.',
     'new-led-e27': 'You do not need a new bulb at this point.',
     switch: 'Leave the power off until the new bulb is in.',
+    breaker: 'Leave the breaker off until the new bulb is in.',
     wait: 'Nothing to wait for right now.',
     ladder: 'The ladder is already where it needs to be.',
-    bin: 'Nothing to throw away yet.',
+    bin: 'Nothing to recycle yet.',
     bulb: 'The new bulb is in. Leave it alone.',
   },
   Scene,
