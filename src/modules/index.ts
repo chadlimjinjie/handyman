@@ -5,6 +5,7 @@ import { leakingTap } from './leaking-tap'
 import { lightBulb } from './light-bulb'
 import { paintWall } from './paint-wall'
 import { powerPlug } from './power-plug'
+import { trippedBreaker } from './tripped-breaker'
 import { unclogSink } from './unclog-sink'
 
 export const modules: Module[] = [
@@ -15,4 +16,5 @@ export const modules: Module[] = [
   powerPlug,
   hangShelf,
   leakingTap,
+  trippedBreaker,
 ]
