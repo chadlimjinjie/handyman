@@ -11,10 +11,17 @@ export type Module = {
   steps: Step[]
   /** Why a click is wrong, keyed by "stepIndex:target" or just "target". */
   mistakes: Record<string, string>
-  Scene: (props: { step: number; onAct: (target: string) => void }) => ReactNode
+  Scene: (props: {
+    step: number
+    onAct: (target: string) => void
+    slip: string | null
+    /** Changes on every wrong click, so a repeated slip can replay its animation. */
+    mistakes: number
+  }) => ReactNode
 }
 
-export type Run = { step: number; mistakes: number; message: string }
+/** `slip` is the target of the last wrong click, cleared by the next correct one. */
+export type Run = { step: number; mistakes: number; message: string; slip: string | null }
 
 export const MAX_MISTAKES = 3
 
@@ -22,6 +29,7 @@ export const start = (mod: Pick<Module, 'brief'>): Run => ({
   step: 0,
   mistakes: 0,
   message: mod.brief,
+  slip: null,
 })
 
 export const hasWon = (mod: Pick<Module, 'steps'>, run: Run) =>
@@ -37,11 +45,12 @@ export function act(
   if (hasWon(mod, run) || hasFailed(run)) return run
   const step = mod.steps[run.step]
   if (target === step.target) {
-    return { ...run, step: run.step + 1, message: step.done }
+    return { ...run, step: run.step + 1, message: step.done, slip: null }
   }
   return {
     ...run,
     mistakes: run.mistakes + 1,
+    slip: target,
     message:
       mod.mistakes[`${run.step}:${target}`] ??
       mod.mistakes[target] ??

@@ -13,7 +13,7 @@ const mod = {
 
 test('correct path wins', () => {
   let run = act(mod, start(mod), 'a')
-  assert.deepEqual(run, { step: 1, mistakes: 0, message: 'a done' })
+  assert.deepEqual(run, { step: 1, mistakes: 0, message: 'a done', slip: null })
   run = act(mod, run, 'b')
   assert.ok(hasWon(mod, run))
   assert.equal(act(mod, run, 'a'), run)
@@ -21,7 +21,8 @@ test('correct path wins', () => {
 
 test('wrong click adds a strike and keeps the step', () => {
   const run = act(mod, start(mod), 'b')
-  assert.deepEqual(run, { step: 0, mistakes: 1, message: 'b too early' })
+  assert.deepEqual(run, { step: 0, mistakes: 1, message: 'b too early', slip: 'b' })
+  assert.equal(act(mod, run, 'a').slip, null)
   assert.equal(act(mod, run, 'c').message, 'never c')
   assert.equal(act(mod, run, 'zzz').message, "That's not the right move yet.")
 })

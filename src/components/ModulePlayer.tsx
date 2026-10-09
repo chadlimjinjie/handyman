@@ -85,7 +85,12 @@ export function ModulePlayer({
         </form>
       )}
 
-      <mod.Scene step={run.step} onAct={(target) => setRun((r) => act(mod, r, target))} />
+      <mod.Scene
+        step={run.step}
+        slip={run.slip}
+        mistakes={run.mistakes}
+        onAct={(target) => setRun((r) => act(mod, r, target))}
+      />
     </div>
   )
 }

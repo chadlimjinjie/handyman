@@ -1,197 +1,86 @@
-import { Fan, Plug, Scissors } from 'lucide-react'
+import { Component, Suspense, lazy, type ReactNode } from 'react'
+import { Button } from '@/components/ui/button'
 import type { Module } from '@/game/engine'
-import { cn } from '@/lib/utils'
-import { Spot } from './spot'
+
+const PowerPlugScene = lazy(() => import('./power-plug-scene'))
 
 // Seen with the cover off and the flex at the bottom. `after` is the step that connects it.
 const terminals = [
-  {
-    target: 'term-e',
-    letter: 'E',
-    name: 'Earth',
-    wire: 'green/yellow',
-    short: 'G/Y',
-    after: 4,
-    swatch: 'bg-linear-to-r from-green-600 to-yellow-400',
-    className: 'top-[5%] left-[36%]',
-  },
-  {
-    target: 'term-n',
-    letter: 'N',
-    name: 'Neutral',
-    wire: 'blue',
-    short: 'Blue',
-    after: 5,
-    swatch: 'bg-blue-600',
-    className: 'top-[38%] left-[5%]',
-  },
-  {
-    target: 'term-l',
-    letter: 'L',
-    name: 'Live',
-    wire: 'brown',
-    short: 'Brown',
-    after: 6,
-    swatch: 'bg-amber-900',
-    className: 'top-[38%] left-[67%]',
-  },
+  { target: 'term-e', name: 'Earth', wire: 'green/yellow', after: 4 },
+  { target: 'term-n', name: 'Neutral', wire: 'blue', after: 5 },
+  { target: 'term-l', name: 'Live', wire: 'brown', after: 6 },
 ]
 
-const shelf = [
-  { target: 'fuse-3a', label: '3A fuse' },
-  { target: 'fuse-13a', label: '13A fuse' },
-  { target: 'fuse-foil', label: 'Foil wrap' },
-]
+// Without WebGL, or if the 3D chunk fails to load, the buttons below still work the module.
+class Optional extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+  render() {
+    return this.state.failed ? null : this.props.children
+  }
+}
 
-// Everything drawn here is derived from `step` (index into `steps` below).
-function Scene({ step, onAct }: { step: number; onAct: (target: string) => void }) {
+// Everything shown here is derived from `step` (index into `steps` below).
+function Scene({ step, onAct, slip, mistakes }: Parameters<Module['Scene']>[0]) {
   const socketOn = step === 0 || step === 12
   const pluggedIn = step < 2 || step > 10
   const open = step >= 3 && step <= 9
-  const stripped = step >= 4
-  const gripped = step >= 8
-  const fuseIn = step >= 9
-  const inHand = terminals.find((t) => t.after === step)
+
+  // The same moves as the 3D scene, for keyboards, screen readers and small screens.
+  const actions = [
+    ['socket-switch', `Socket switch: ${socketOn ? 'on' : 'off'}`],
+    [
+      'plug',
+      pluggedIn
+        ? `${step < 2 ? 'Cracked old plug' : 'Rewired plug'}: in the socket`
+        : 'Wall socket: empty',
+    ],
+    ['cover', `Plug cover: ${open ? 'off' : 'on'}`],
+    ['strip', `Wire stripper. Flex: ${step >= 4 ? 'stripped' : 'frayed end'}`],
+    ...(open
+      ? [
+          ...terminals.map((t) => [
+            t.target,
+            `${t.name} terminal: ${step > t.after ? `${t.wire} wire` : 'empty'}`,
+          ]),
+          ['grip', `Cord grip: ${step >= 8 ? 'tight' : 'loose'}`],
+        ]
+      : []),
+    ['fuse-3a', step >= 9 ? '3A fuse: fitted' : '3A fuse'],
+    ['fuse-13a', '13A fuse'],
+    ['fuse-foil', 'Foil wrap'],
+  ]
 
   return (
-    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border bg-sky-50">
-      <div className="absolute inset-x-0 bottom-0 h-[8%] bg-stone-400" />
-
-      <Spot
-        aria-label={`Socket switch, ${socketOn ? 'on' : 'off'}`}
-        onClick={() => onAct('socket-switch')}
-        className="top-[14%] left-[5%] w-[12%] gap-1 p-1"
-      >
-        <span className="flex aspect-[2/3] w-1/2 rounded border-2 border-stone-500 bg-white p-0.5">
-          <span
-            className={cn(
-              'h-1/2 w-full rounded-sm',
-              // Singapore rockers: down is ON
-              socketOn ? 'self-end bg-green-600' : 'self-start bg-stone-400',
-            )}
-          />
-        </span>
-        {socketOn ? 'ON' : 'OFF'}
-      </Spot>
-      <Spot
-        aria-label={
-          pluggedIn
-            ? `${step < 2 ? 'Cracked old plug' : 'Rewired plug'}, in the socket`
-            : 'Wall socket, empty'
-        }
-        onClick={() => onAct('plug')}
-        className="top-[40%] left-[4%] w-[14%] gap-1 p-1"
-      >
-        {pluggedIn ? (
-          <Plug
-            className={cn('size-auto w-3/5', step < 2 ? 'text-red-600' : 'text-stone-700')}
-            aria-hidden="true"
-          />
-        ) : (
-          <span className="aspect-square w-3/5 rounded border-2 border-dashed border-stone-500" />
-        )}
-        {pluggedIn ? (step < 2 ? 'Cracked plug' : 'Plugged in') : 'Socket'}
-      </Spot>
-
-      <p className="absolute top-[3%] right-[3%] rounded border border-stone-400 bg-white px-1.5 py-0.5 text-xs text-stone-700">
-        Fan: 55W · metal body
-      </p>
-      <Fan
-        className={cn(
-          'absolute top-[12%] left-[84%] size-auto w-[11%] text-stone-600',
-          step === 12 && 'motion-safe:animate-spin',
-        )}
+    <div className="flex flex-col gap-3">
+      <div
         aria-hidden="true"
-      />
-
-      {step < 11 && (
-        <div className="absolute top-[12%] left-[24%] h-[54%] w-[44%] rounded-xl border-2 border-stone-500 bg-white">
-          {open ? (
-            <>
-              {terminals.map((t) => {
-                const connected = step > t.after
-                return (
-                  <Spot
-                    key={t.target}
-                    aria-label={`${t.name} terminal, ${connected ? `${t.wire} wire connected` : 'empty'}`}
-                    onClick={() => onAct(t.target)}
-                    className={cn('w-[28%] border border-stone-400 py-1', t.className)}
-                  >
-                    <span className="text-base font-bold">{t.letter}</span>
-                    <span className={cn('h-1.5 w-3/5 rounded-sm', connected && t.swatch)} />
-                    {connected ? t.short : t.name}
-                  </Spot>
-                )
-              })}
-              <p className="absolute top-[70%] left-[67%] w-[28%] rounded border border-stone-400 text-center text-xs text-stone-700">
-                Fuse: {fuseIn ? '3A' : 'none'}
-              </p>
-              <Spot
-                aria-label={`Cord grip, ${gripped ? 'clamped on the outer sheath' : 'loose'}`}
-                onClick={() => onAct('grip')}
-                className="bottom-[4%] left-[32%] w-[32%] border border-stone-400 py-1"
-              >
-                <span
-                  className={cn('h-1.5 w-4/5 rounded-sm', gripped ? 'bg-stone-800' : 'bg-stone-300')}
-                />
-                {gripped ? 'Grip tight' : 'Cord grip'}
-              </Spot>
-            </>
-          ) : (
-            <Spot
-              aria-label={
-                step === 10 ? 'Rewired plug, cover on, ready to plug in' : 'New plug, cover on'
-              }
-              // Closed and finished, the natural click is "plug this in".
-              onClick={() => onAct(step === 10 ? 'plug' : 'cover')}
-              className="static size-full justify-center gap-1"
-            >
-              <Plug className="size-auto w-2/5 text-stone-700" aria-hidden="true" />
-              {step === 10 ? 'Rewired plug' : 'New plug'}
-            </Spot>
-          )}
-        </div>
-      )}
-
-      {open && (
-        <Spot
-          aria-label="Plug cover, off"
-          onClick={() => onAct('cover')}
-          className="top-[36%] left-[71%] w-[12%] border-2 border-stone-500 bg-white py-2"
-        >
-          Cover
-        </Spot>
-      )}
-
-      <Spot
-        aria-label={`Wire stripper. Fan flex: ${stripped ? 'stripped, three cores bared' : 'frayed end'}`}
-        onClick={() => onAct('strip')}
-        className="top-[54%] left-[84%] w-[12%] gap-1 p-1"
+        className="aspect-[4/3] w-full overflow-hidden rounded-xl border bg-sky-50"
       >
-        <Scissors className="size-auto w-3/5" aria-hidden="true" />
-        Strip
-      </Spot>
-
-      <div className="absolute top-[71%] left-[24%] flex w-[44%] gap-[4%] border-b-4 border-amber-800 pb-1">
-        {shelf.map(({ target, label }) => (
-          <Spot
-            key={target}
-            aria-label={label}
-            onClick={() => onAct(target)}
-            className={cn(
-              'static flex-1 border border-stone-400 bg-white py-1',
-              fuseIn && target === 'fuse-3a' && 'invisible',
-            )}
-          >
-            <span className="h-1.5 w-3/5 rounded-full border border-stone-500 bg-stone-200" />
-            {label}
-          </Spot>
-        ))}
+        <Optional>
+          <Suspense fallback={null}>
+            <PowerPlugScene
+              step={step}
+              slip={slip}
+              mistakes={mistakes}
+              onAct={onAct}
+              reduced={matchMedia('(prefers-reduced-motion: reduce)').matches}
+            />
+          </Suspense>
+        </Optional>
       </div>
-
-      <p className="absolute bottom-[2%] left-[4%] text-xs font-medium text-stone-900">
-        In hand: {inHand ? `${inHand.wire} wire` : 'nothing'}
-      </p>
+      <p className="text-xs text-stone-700">Fan rating plate: 55W · metal body</p>
+      <ul className="flex flex-wrap gap-2">
+        {actions.map(([target, label]) => (
+          <li key={target}>
+            <Button variant="outline" size="sm" onClick={() => onAct(target)}>
+              {label}
+            </Button>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
