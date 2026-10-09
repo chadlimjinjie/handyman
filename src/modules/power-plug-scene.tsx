@@ -1,11 +1,32 @@
-import { Canvas, useFrame, useThree, type ThreeElements } from '@react-three/fiber'
-import { createContext, use, useEffect, useMemo, useRef, type Ref } from 'react'
-import { CanvasTexture, MathUtils, QuadraticBezierCurve3, SRGBColorSpace, Vector3 } from 'three'
-import type { Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, PointLight } from 'three'
+import { useFrame, useThree } from '@react-three/fiber'
+import { useEffect, useRef } from 'react'
+import { MathUtils } from 'three'
+import type { Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, Vector3 } from 'three'
+import {
+  BODY,
+  BRASS,
+  Box,
+  DARK,
+  Hit,
+  Label,
+  Rod,
+  Rope,
+  STEEL,
+  Spark,
+  Stage,
+  StageCanvas,
+  Target,
+  WOOD,
+  curve,
+  lay,
+  useEased,
+  useSlip,
+  v3,
+  type SceneProps,
+} from '@/scene/stage'
 import { plugPose, slipEffect, type Pose } from './power-plug-pose'
 
-const { clamp, lerp, smoothstep } = MathUtils
-const v3 = (x: number, y: number, z: number) => new Vector3(x, y, z)
+const { lerp, smoothstep } = MathUtils
 
 // World: metres, x right, y up, z toward the camera. Bench top is y = 0, the wall is at z = -0.2.
 // The plug and socket are drawn about twice life size so the terminals can be seen and clicked.
@@ -67,168 +88,6 @@ const SECONDS: Partial<Record<keyof Pose, number>> = {
   newIn: 1.4,
   closeUp: 1.2,
 }
-const FX_SECONDS = 1.1
-
-const BODY = '#f5f5f4'
-const BRASS = '#d4a017'
-const COPPER = '#c2703d'
-const STEEL = '#a8a29e'
-const DARK = '#292524'
-const WOOD = '#c8956c'
-
-const Stage = createContext<(target: string) => void>(() => {})
-
-type MeshProps = Omit<ThreeElements['mesh'], 'args'>
-
-function Box({
-  size,
-  color,
-  metal,
-  ...props
-}: MeshProps & { size: [number, number, number]; color: string; metal?: boolean }) {
-  return (
-    <mesh castShadow receiveShadow {...props}>
-      <boxGeometry args={size} />
-      <meshStandardMaterial color={color} metalness={metal ? 0.35 : 0} roughness={metal ? 0.4 : 0.8} />
-    </mesh>
-  )
-}
-
-// a cylinder along y
-function Rod({
-  r,
-  len,
-  color,
-  metal,
-  ...props
-}: MeshProps & { r: number; len: number; color: string; metal?: boolean }) {
-  return (
-    <mesh castShadow {...props}>
-      <cylinderGeometry args={[r, r, len, 16]} />
-      <meshStandardMaterial color={color} metalness={metal ? 0.35 : 0} roughness={metal ? 0.4 : 0.8} />
-    </mesh>
-  )
-}
-
-// An unseen box that makes a small part easier to click.
-function Hit({ size, ...props }: MeshProps & { size: [number, number, number] }) {
-  return (
-    <mesh {...props}>
-      <boxGeometry args={size} />
-      <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-    </mesh>
-  )
-}
-
-function Label({ text, h, color = DARK, ...props }: MeshProps & { text: string; h: number; color?: string }) {
-  const [map, aspect] = useMemo(() => {
-    const canvas = document.createElement('canvas')
-    canvas.width = 32 + text.length * 56
-    canvas.height = 96
-    const ctx = canvas.getContext('2d')!
-    ctx.font = 'bold 80px sans-serif'
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillStyle = color
-    ctx.fillText(text, canvas.width / 2, 52)
-    const texture = new CanvasTexture(canvas)
-    texture.colorSpace = SRGBColorSpace
-    return [texture, canvas.width / canvas.height]
-  }, [text, color])
-  return (
-    <mesh {...props}>
-      <planeGeometry args={[h * aspect, h]} />
-      <meshBasicMaterial map={map} transparent />
-    </mesh>
-  )
-}
-
-// Something the learner can click. The inner group is the one that swells on hover and
-// shakes on a wrong move, so the caller's position and ref stay on the outer one.
-function Target({ target, children, ...props }: ThreeElements['group'] & { target: string }) {
-  const onAct = use(Stage)
-  const invalidate = useThree((s) => s.invalidate)
-  const inner = useRef<Group>(null)
-  const hover = (on: boolean) => {
-    inner.current!.scale.setScalar(on ? 1.06 : 1)
-    document.body.style.cursor = on ? 'pointer' : ''
-    invalidate()
-  }
-  return (
-    <group {...props}>
-      <group
-        ref={inner}
-        userData={{ target }}
-        onClick={(e) => {
-          e.stopPropagation()
-          onAct(target)
-        }}
-        onPointerOver={(e) => {
-          e.stopPropagation()
-          hover(true)
-        }}
-        onPointerOut={() => hover(false)}
-      >
-        {children}
-      </group>
-    </group>
-  )
-}
-
-// A bendy line of short cylinders, laid along a curve each frame by `lay`.
-function Rope({
-  ref,
-  n,
-  r,
-  colors,
-  bareTip,
-}: {
-  ref: Ref<Group>
-  n: number
-  r: number
-  colors: readonly string[]
-  bareTip?: boolean
-}) {
-  return (
-    <group ref={ref}>
-      {Array.from({ length: n }, (_, i) => {
-        const bare = bareTip && i === n - 1
-        return (
-          <mesh key={i} castShadow>
-            <cylinderGeometry args={[bare ? r * 0.55 : r, bare ? r * 0.55 : r, 1, 8]} />
-            <meshStandardMaterial
-              color={bare ? COPPER : colors[i % colors.length]}
-              emissive="#ff3b00"
-              emissiveIntensity={0}
-            />
-          </mesh>
-        )
-      })}
-    </group>
-  )
-}
-
-const curve = new QuadraticBezierCurve3()
-const UP = v3(0, 1, 0)
-const from = v3(0, 0, 0)
-const to = v3(0, 0, 0)
-const dir = v3(0, 0, 0)
-
-function lay(rope: Group) {
-  const n = rope.children.length
-  curve.getPoint(0, from)
-  for (let i = 0; i < n; i++) {
-    const seg = rope.children[i]
-    curve.getPoint((i + 1) / n, to)
-    const len = dir.subVectors(to, from).length()
-    seg.position.addVectors(from, to).multiplyScalar(0.5)
-    // a little overlap hides the gaps on the outside of a bend
-    seg.scale.set(1, len * 1.15 + 1e-6, 1)
-    if (len > 1e-6) seg.quaternion.setFromUnitVectors(UP, dir.divideScalar(len))
-    from.copy(to)
-  }
-}
-
 // Carries a plug between the bench and the socket, pins going in square at the end.
 function carry(plug: Group, rest: Vector3, inSocket: number) {
   const p = smoothstep(inSocket, 0, 1)
@@ -261,14 +120,6 @@ function Fuse({ band }: { band: string }) {
   )
 }
 
-type Props = {
-  step: number
-  slip: string | null
-  mistakes: number
-  onAct: (target: string) => void
-  reduced: boolean
-}
-
 const flexEnd = v3(0, 0, 0)
 const newEntry = v3(0, 0, 0)
 const point = v3(0, 0, 0)
@@ -276,10 +127,9 @@ const tip = v3(0, 0, 0)
 const bend = v3(0, 0, 0)
 const sheathEnd = v3(0, 0, 0)
 const look = v3(0, 0, 0)
-const sparkAt = v3(0, 0, 0)
 const material = (o: Object3D) => (o as Mesh).material as MeshStandardMaterial | MeshBasicMaterial
 
-function Scene({ step, slip, mistakes, onAct, reduced }: Props) {
+function Scene({ step, slip, mistakes, onAct, reduced }: SceneProps) {
   const rocker = useRef<Group>(null)
   const redMark = useRef<Mesh>(null)
   const oldPlug = useRef<Group>(null)
@@ -293,48 +143,23 @@ function Scene({ step, slip, mistakes, onAct, reduced }: Props) {
   const stripper = useRef<Group>(null)
   const fuse = useRef<Group>(null)
   const blades = useRef<Group>(null)
-  const spark = useRef<Group>(null)
-  const sparkLight = useRef<PointLight>(null)
   const smoke = useRef<Group>(null)
 
-  const cur = useRef(plugPose(step))
-  const fx = useRef<{ kind: string; t: number; part?: Object3D }>({ kind: '', t: FX_SECONDS })
-  const scene = useThree((s) => s.scene)
+  const eased = useEased(plugPose, step, reduced, SECONDS)
+  const fx = useSlip({ slip, mistakes, reduced }, slip ? slipEffect(step, slip) : '')
   const camera = useThree((s) => s.camera)
-  const invalidate = useThree((s) => s.invalidate)
-
-  // only matters with frameloop="demand": draw the new state
-  useEffect(() => invalidate(), [step, invalidate])
 
   useEffect(() => {
-    // motion-reduced learners get the explanation as text only
-    if (!slip || reduced) return
-    const parts: Object3D[] = []
-    scene.traverse((o) => {
-      if (o.userData.target === slip) parts.push(o)
-    })
-    if (fx.current.part) fx.current.part.position.x = 0
-    fx.current = { kind: slipEffect(step, slip), t: 0, part: parts[0] }
     // the spark jumps where the live copper is, which is not always the thing clicked
-    const live = slip === 'strip' ? oldPlug.current : slip === 'plug' ? plug.current : parts[0]
-    // and it is drawn a little toward the camera, clear of the part it comes from
-    live?.getWorldPosition(sparkAt).lerp(camera.position, 0.12)
-  }, [mistakes, slip, step, reduced, scene, camera])
+    const live = slip === 'strip' ? oldPlug.current : slip === 'plug' ? plug.current : null
+    live?.getWorldPosition(fx.current.at).lerp(camera.position, 0.12)
+  }, [mistakes, slip, camera, fx])
 
   useFrame(({ camera }, delta) => {
-    const goal = plugPose(step)
-    const c = cur.current
-    for (const k of Object.keys(goal) as (keyof Pose)[]) {
-      const max = reduced ? 1 : delta / (SECONDS[k] ?? 0.9)
-      c[k] += clamp(goal[k] - c[k], -max, max)
-    }
-
+    const c = eased.current
     const f = fx.current
-    f.t += delta
-    // 1 at the wrong click, fading to 0
-    const k = Math.max(0, 1 - f.t / FX_SECONDS)
+    const k = f.k
     const swell = Math.sin(Math.PI * k)
-    if (f.part) f.part.position.x = Math.sin(f.t * 45) * 0.004 * k
     const tug = f.kind === 'tug' ? swell : 0
 
     rocker.current!.rotation.x = lerp(-0.22, 0.22, smoothstep(c.socketOn, 0, 1))
@@ -410,13 +235,6 @@ function Scene({ step, slip, mistakes, onAct, reduced }: Props) {
     fuse.current!.visible = c.newIn === 0
 
     blades.current!.rotation.z -= delta * 22 * smoothstep(c.fanOn, 0, 1)
-
-    const sparking = f.kind === 'spark' ? k * k : 0
-    spark.current!.visible = sparking > 0
-    spark.current!.position.copy(sparkAt)
-    spark.current!.scale.setScalar(0.4 + sparking)
-    spark.current!.rotation.z = f.t * 9
-    sparkLight.current!.intensity = sparking * 0.5
 
     const closeUp = smoothstep(c.closeUp, 0, 1)
     camera.position.lerpVectors(CAM_WALL, CAM_BENCH, closeUp)
@@ -604,19 +422,7 @@ function Scene({ step, slip, mistakes, onAct, reduced }: Props) {
         <Label text="55W" h={0.032} position={[0, -0.2, -0.014]} />
       </group>
 
-      <group ref={spark} visible={false}>
-        <mesh>
-          <sphereGeometry args={[0.012]} />
-          <meshBasicMaterial color="#fffbe0" />
-        </mesh>
-        {[0, 1, 2, 3].map((n) => (
-          <mesh key={n} rotation={[0, 0, (n * Math.PI) / 4]}>
-            <boxGeometry args={[0.09, 0.004, 0.004]} />
-            <meshBasicMaterial color="#fde047" />
-          </mesh>
-        ))}
-        <pointLight ref={sparkLight} color="#fff3b0" intensity={0} distance={0.8} />
-      </group>
+      <Spark fx={fx} />
 
       <group ref={smoke} visible={false}>
         {[-0.014, 0.004, 0.016].map((x, i) => (
@@ -630,15 +436,10 @@ function Scene({ step, slip, mistakes, onAct, reduced }: Props) {
   )
 }
 
-export default function PowerPlugScene(props: Props) {
+export default function PowerPlugScene(props: SceneProps) {
   return (
-    <Canvas
-      shadows="percentage"
-      dpr={[1, 2]}
-      frameloop={props.reduced ? 'demand' : 'always'}
-      camera={{ position: CAM_WALL.toArray(), fov: 38, near: 0.05, far: 12 }}
-    >
+    <StageCanvas reduced={props.reduced} position={CAM_WALL}>
       <Scene {...props} />
-    </Canvas>
+    </StageCanvas>
   )
 }

@@ -1,17 +1,18 @@
-import { Clock, PaintBucket } from 'lucide-react'
+import { lazy } from 'react'
 import type { Module } from '@/game/engine'
-import { cn } from '@/lib/utils'
-import { Spot } from './spot'
+import { SceneFrame } from '@/scene/frame'
+
+const PaintWallScene = lazy(() => import('./paint-wall-scene'))
 
 const shelf = [
-  { target: 'filler', label: 'Filler', name: 'Filler' },
-  { target: 'sandpaper', label: 'Sand', name: 'Sandpaper' },
-  { target: 'cloth', label: 'Cloth', name: 'Damp cloth' },
-  { target: 'tape', label: 'Tape', name: 'Masking tape' },
-  { target: 'primer', label: 'Primer', name: 'Primer' },
-  { target: 'stick', label: 'Stir', name: 'Stirring stick' },
-  { target: 'brush', label: 'Brush', name: 'Brush' },
-  { target: 'roller', label: 'Roller', name: 'Roller' },
+  ['filler', 'Filler'],
+  ['sandpaper', 'Sandpaper'],
+  ['cloth', 'Damp cloth'],
+  ['tape', 'Masking tape'],
+  ['primer', 'Primer'],
+  ['stick', 'Stirring stick'],
+  ['brush', 'Brush'],
+  ['roller', 'Roller'],
 ]
 
 // What the wall looks like at each `step`, 0 through 17 (done).
@@ -36,139 +37,36 @@ const wallStates = [
   'two even coats',
 ]
 
-const patches = ['top-[18%] left-[16%]', 'top-[58%] left-[38%]', 'top-[26%] left-[70%]']
-
-// Everything drawn here is derived from `step` (index into `steps` below).
-function Scene({ step, onAct }: { step: number; onAct: (target: string) => void }) {
-  const sheetDown = step >= 1
-  const taped = step >= 5 && step < 16
-  const stirred = step >= 7
-  const trayFull = step >= 8
+// Everything shown here is derived from `step` (index into `steps` below).
+function Scene({ step, onAct, slip, mistakes }: Parameters<Module['Scene']>[0]) {
   const holding =
     step === 9 ? 'brush' : step === 10 || step === 11 || step === 14 ? 'loaded roller' : 'nothing'
 
+  const actions = [
+    ['wall', `Wall: ${wallStates[step]}`],
+    ['wait', 'Wait for it to dry'],
+    ...shelf,
+    ['sheet', `Dust sheet: ${step >= 1 ? 'covering the floor' : 'folded'}`],
+    ['can', `Paint can${step >= 7 ? ': stirred' : ''}`],
+    ['tray', `Roller tray: ${step >= 8 ? 'filled' : 'empty'}`],
+    ['water', 'Bucket of clean water'],
+  ]
+
   return (
-    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border bg-orange-50">
-      <div
-        className={cn(
-          'absolute inset-x-0 bottom-0 h-[8%]',
-          sheetDown ? 'border-t-2 border-dashed border-stone-500 bg-stone-100' : 'bg-stone-400',
-        )}
+    <SceneFrame
+      className="bg-orange-50"
+      caption={<p className="text-xs text-stone-700">In hand: {holding}</p>}
+      actions={actions}
+      onAct={onAct}
+    >
+      <PaintWallScene
+        step={step}
+        slip={slip}
+        mistakes={mistakes}
+        onAct={onAct}
+        reduced={matchMedia('(prefers-reduced-motion: reduce)').matches}
       />
-
-      <Spot
-        aria-label={`Wall: ${wallStates[step]}`}
-        onClick={() => onAct('wall')}
-        className="top-[3%] left-[3%] h-[46%] w-[80%] justify-center overflow-hidden text-stone-900"
-      >
-        <span
-          className={cn(
-            'absolute inset-0 border-8',
-            step >= 15
-              ? 'border-teal-300 bg-teal-300'
-              : step >= 12
-                ? 'border-teal-100 bg-teal-100'
-                : step === 11
-                  ? 'border-teal-100 bg-[repeating-linear-gradient(100deg,var(--color-teal-100)_0_14%,var(--color-stone-200)_14%_20%)]'
-                  : step >= 9
-                    ? 'border-teal-100 bg-stone-200'
-                    : 'border-stone-200 bg-stone-200',
-          )}
-        />
-        {step < 11 &&
-          patches.map((pos) => (
-            <span
-              key={pos}
-              className={cn(
-                'absolute',
-                pos,
-                step < 2
-                  ? 'size-1.5 rounded-full bg-stone-700'
-                  : step < 6
-                    ? 'size-4 rounded-sm bg-white'
-                    : 'size-4 rounded-sm bg-stone-50 ring-1 ring-stone-400',
-              )}
-            />
-          ))}
-        <span
-          className={cn(
-            'absolute top-[38%] right-[6%] size-4 rounded-sm border-2 bg-white',
-            taped ? 'border-blue-500' : 'border-stone-400',
-          )}
-        />
-        <span
-          className={cn('absolute inset-x-0 bottom-0 h-[8%]', taped ? 'bg-blue-400' : 'bg-white')}
-        />
-        <span className="relative rounded bg-white/70 px-1.5 py-0.5">Wall: {wallStates[step]}</span>
-      </Spot>
-
-      <Spot
-        aria-label="Wait for it to dry"
-        onClick={() => onAct('wait')}
-        className="top-[6%] left-[87%] w-[10%] gap-1 p-1"
-      >
-        <Clock className="size-auto w-full" />
-        Wait
-      </Spot>
-
-      <div className="absolute top-[53%] left-[3%] flex w-[94%] gap-[1%] border-b-4 border-amber-800 pb-1">
-        {shelf.map(({ target, label, name }) => (
-          <Spot
-            key={target}
-            aria-label={name}
-            onClick={() => onAct(target)}
-            className="static flex-1 border border-stone-400 bg-white py-2"
-          >
-            {label}
-          </Spot>
-        ))}
-      </div>
-
-      <Spot
-        aria-label={sheetDown ? 'Dust sheet, covering the floor' : 'Dust sheet, folded'}
-        onClick={() => onAct('sheet')}
-        className="bottom-[9%] left-[4%] w-[16%]"
-      >
-        {sheetDown ? 'Sheet down' : 'Dust sheet'}
-        <span className="h-3 w-full rounded-sm border-2 border-stone-500 bg-stone-100" />
-      </Spot>
-
-      <Spot
-        aria-label={`Paint can${stirred ? ', stirred' : ''}`}
-        onClick={() => onAct('can')}
-        className="bottom-[9%] left-[30%] w-[12%]"
-      >
-        <PaintBucket className="size-auto w-3/5 text-teal-700" aria-hidden="true" />
-        Paint
-      </Spot>
-
-      <Spot
-        aria-label={`Roller tray, ${trayFull ? 'filled' : 'empty'}`}
-        onClick={() => onAct('tray')}
-        className="bottom-[9%] left-[52%] w-[16%]"
-      >
-        Tray
-        <span
-          className={cn(
-            'h-4 w-full -skew-x-12 rounded-sm border-2 border-stone-600',
-            trayFull ? 'bg-teal-300' : 'bg-white',
-          )}
-        />
-      </Spot>
-
-      <Spot
-        aria-label="Bucket of clean water"
-        onClick={() => onAct('water')}
-        className="bottom-[9%] left-[78%] w-[14%]"
-      >
-        Water
-        <span className="aspect-[5/4] w-3/5 rounded-b-lg border-2 border-t-4 border-stone-600 bg-sky-200" />
-      </Spot>
-
-      <p className="absolute bottom-[2%] left-[4%] text-xs font-medium text-stone-900">
-        In hand: {holding}
-      </p>
-    </div>
+    </SceneFrame>
   )
 }
 

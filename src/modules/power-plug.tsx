@@ -1,6 +1,6 @@
-import { Component, Suspense, lazy, type ReactNode } from 'react'
-import { Button } from '@/components/ui/button'
+import { lazy } from 'react'
 import type { Module } from '@/game/engine'
+import { SceneFrame } from '@/scene/frame'
 
 const PowerPlugScene = lazy(() => import('./power-plug-scene'))
 
@@ -11,24 +11,12 @@ const terminals = [
   { target: 'term-l', name: 'Live', wire: 'brown', after: 6 },
 ]
 
-// Without WebGL, or if the 3D chunk fails to load, the buttons below still work the module.
-class Optional extends Component<{ children: ReactNode }, { failed: boolean }> {
-  state = { failed: false }
-  static getDerivedStateFromError() {
-    return { failed: true }
-  }
-  render() {
-    return this.state.failed ? null : this.props.children
-  }
-}
-
 // Everything shown here is derived from `step` (index into `steps` below).
 function Scene({ step, onAct, slip, mistakes }: Parameters<Module['Scene']>[0]) {
   const socketOn = step === 0 || step === 12
   const pluggedIn = step < 2 || step > 10
   const open = step >= 3 && step <= 9
 
-  // The same moves as the 3D scene, for keyboards, screen readers and small screens.
   const actions = [
     ['socket-switch', `Socket switch: ${socketOn ? 'on' : 'off'}`],
     [
@@ -54,34 +42,20 @@ function Scene({ step, onAct, slip, mistakes }: Parameters<Module['Scene']>[0]) 
   ]
 
   return (
-    <div className="flex flex-col gap-3">
-      <div
-        aria-hidden="true"
-        className="aspect-[4/3] w-full overflow-hidden rounded-xl border bg-sky-50"
-      >
-        <Optional>
-          <Suspense fallback={null}>
-            <PowerPlugScene
-              step={step}
-              slip={slip}
-              mistakes={mistakes}
-              onAct={onAct}
-              reduced={matchMedia('(prefers-reduced-motion: reduce)').matches}
-            />
-          </Suspense>
-        </Optional>
-      </div>
-      <p className="text-xs text-stone-700">Fan rating plate: 55W · metal body</p>
-      <ul className="flex flex-wrap gap-2">
-        {actions.map(([target, label]) => (
-          <li key={target}>
-            <Button variant="outline" size="sm" onClick={() => onAct(target)}>
-              {label}
-            </Button>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <SceneFrame
+      className="bg-sky-50"
+      caption={<p className="text-xs text-stone-700">Fan rating plate: 55W · metal body</p>}
+      actions={actions}
+      onAct={onAct}
+    >
+      <PowerPlugScene
+        step={step}
+        slip={slip}
+        mistakes={mistakes}
+        onAct={onAct}
+        reduced={matchMedia('(prefers-reduced-motion: reduce)').matches}
+      />
+    </SceneFrame>
   )
 }
 
